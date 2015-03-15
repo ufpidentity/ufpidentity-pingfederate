@@ -4,14 +4,25 @@ import java.io.File;
 import java.io.IOException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
+import java.util.ResourceBundle;
 import java.util.Map;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import org.sourceid.common.ResponseTemplateRenderer;
 import org.sourceid.saml20.adapter.AuthnAdapterException;
 import org.sourceid.saml20.adapter.attribute.AttributeValue;
 import org.sourceid.saml20.adapter.conf.Configuration;
@@ -24,9 +35,12 @@ import org.sourceid.saml20.adapter.idp.authn.AuthnPolicy;
 import org.sourceid.saml20.adapter.idp.authn.IdpAuthenticationAdapter;
 import org.sourceid.saml20.adapter.idp.authn.IdpAuthnAdapterDescriptor;
 
+import com.pingidentity.locale.LocaleUtil;
 import com.pingidentity.sdk.AuthnAdapterResponse;
 import com.pingidentity.sdk.AuthnAdapterResponse.AUTHN_STATUS;
 import com.pingidentity.sdk.IdpAuthenticationAdapterV2;
+import com.pingidentity.sdk.template.TemplateRendererUtil;
+import com.pingidentity.sdk.locale.LanguagePackMessages;
 
 import com.ufp.identity4j.data.AuthenticationContext;
 import com.ufp.identity4j.data.AuthenticationPretext;
@@ -52,44 +66,34 @@ import com.ufp.identity4j.resolver.StaticIdentityResolver;
  */
 public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAdapterV2
 {
-    private static final String ATTR_IP_ADDR = "ip_address"; // use the IP address to get to identify the user
+    private static final String ATTR_NAME = "name"; // use the IP address to get to identify the user
     private static final String ATTR_ROLE = "role"; // identify the role of the user, i.e. guest, corp_user
     private static final String CHAINED_ATTR_USERNAME = "username";
     private static final String ROLE_GUEST = "GUEST";
     private static final String ROLE_CORP_USER = "CORP_USER";
-    private static final String CONFIG_BASE_ADDR = "Network Base Address";
-    private static final String CONFIG_SUBNET_MASK = "Subnet Mask";
+    private static final String CONFIG_KEY_PASSWORD = "Private Key Password";
 
     private final IdpAuthnAdapterDescriptor descriptor;
     private IdentityServiceProvider identityServiceProvider;
-
+    private Log log = LogFactory.getLog(this.getClass());
     /**
      * Constructor for the Sample Subnet Adapter. Initializes the authentication adapter descriptor so PingFederate can
      * generate the proper configuration GUI
      */
     public UfpIdentityIdpAuthenticationAdapter()
     {
-        // Create text field to represent the base network address
-        TextFieldDescriptor baseNetworkAddressField = new TextFieldDescriptor(CONFIG_BASE_ADDR,
-                "Enter the base IPv4 address to identify the authenticated subnet");
-        //baseNetworkAddressField.addValidator(new IPv4FieldValidator());
-        baseNetworkAddressField.setDefaultValue("0.0.0.0");
-
-        // Create text field to represent the subnet mask
-        TextFieldDescriptor subnetMaskField = new TextFieldDescriptor(CONFIG_SUBNET_MASK,
-                "Enter the IPv4 subnet mask to identify the authenticated subnet");
-        //subnetMaskField.addValidator(new IPv4FieldValidator());
-        subnetMaskField.setDefaultValue("255.255.255.0");
+        // Create text field to represent the private key password
+        TextFieldDescriptor privateKeyPasswordField = new TextFieldDescriptor(CONFIG_KEY_PASSWORD,
+                "Enter the private key password", true);
 
         // Create a GUI descriptor
         AdapterConfigurationGuiDescriptor guiDescriptor = new AdapterConfigurationGuiDescriptor(
-                "Set the details of the subnet to identify your SSO clients");
-        guiDescriptor.addField(baseNetworkAddressField);
-        guiDescriptor.addField(subnetMaskField);
+                "Set the details to enable UFP Identity");
+        guiDescriptor.addField(privateKeyPasswordField);
 
         // Create the Idp authentication adapter descriptor
         Set<String> contract = new HashSet<String>();
-        contract.add(ATTR_IP_ADDR);
+        contract.add(ATTR_NAME);
         contract.add(ATTR_ROLE);
         descriptor = new IdpAuthnAdapterDescriptor(this, "UFP Identity IdP Adapter", contract, false, guiDescriptor, false);
     }
@@ -101,7 +105,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      * <br/>
      * Your implementation of this method should return the same IdpAuthnAdapterDescriptor object from call to call -
      * behaviour of the system is undefined if this convention is not followed.
-     * 
+     *
      * @return an IdpAuthnAdapterDescriptor object that describes this IdP adapter implementation.
      */
     public IdpAuthnAdapterDescriptor getAdapterDescriptor()  {
@@ -128,7 +132,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      * alternative.
      * </p>
      * <p>
-     * 
+     *
      * <b>Note on SOAP logout:</b> If this logout is being invoked as the result of a back channel protocol request, the
      * request, response and resumePath parameters will all be null as they have no meaning in such a context where the
      * user agent is inaccessible.
@@ -136,7 +140,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      * <p>
      * In this example, no extra action is needed to logout so simply return true.
      * </p>
-     * 
+     *
      * @param authnIdentifiers
      *            the map of authentication identifiers originally returned to the PingFederate server by the
      *            {@link #lookupAuthN} method. This enables the adapter to associate a security context or session
@@ -161,7 +165,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      * @throws IOException
      *             for any problem with I/O (typically any operation that writes to the HttpServletResponse will throw
      *             an IOException.
-     * 
+     *
      * @see IdpAuthenticationAdapter#logoutAuthN(Map, HttpServletRequest, HttpServletResponse, String)
      */
     @SuppressWarnings("rawtypes")
@@ -181,7 +185,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      * invoked with the proper configuration. All concurrency issues are handled in the server so you don't need to
      * worry about them here. The server doesn't allow access to your adapter implementation instance until after
      * creation and configuration is completed.
-     * 
+     *
      * @param configuration
      *            the Configuration object constructed from the values entered by the user via the GUI.
      */
@@ -189,12 +193,15 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
         identityServiceProvider = new IdentityServiceProvider();
         // setup the key manager factory
         KeyManagerFactoryBuilder keyManagerFactoryBuilder = new KeyManagerFactoryBuilder();
-        keyManagerFactoryBuilder.setStore(new File("src/test/resources/example.com.p12"));
-        keyManagerFactoryBuilder.setPassphrase("test");
+        keyManagerFactoryBuilder.setStore(new File("pingfederate-7.3.0/pingfederate/server/default/conf/ufp-identity/example.com.p12"));
+        String password = configuration.getFieldValue(CONFIG_KEY_PASSWORD);
+        log.info("got configuration password of " + password);
+        keyManagerFactoryBuilder.setPassphrase(password);
 
+        log.info("current working directory is " + new File(".").getAbsoluteFile().toString());
         // setup the trust store
         TrustManagerFactoryBuilder trustManagerFactoryBuilder = new TrustManagerFactoryBuilder();
-        trustManagerFactoryBuilder.setStore(new File("src/test/resources/truststore.jks"));
+        trustManagerFactoryBuilder.setStore(new File("pingfederate-7.3.0/pingfederate/server/default/conf/ufp-identity/truststore.jks"));
         trustManagerFactoryBuilder.setPassphrase("pSnHa(3QDixmi%\\");
 
         // set provider properties
@@ -212,11 +219,15 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      * <p>
      * In this example the method not used, return null
      * </p>
-     * 
+     *
      * @return a map
      */
     public Map<String, Object> getAdapterInfo() {
         return null;
+    }
+
+    private boolean hasAttribute(HttpSession httpSession, String attributeName) {
+        return (httpSession.getAttribute(attributeName) != null);
     }
 
     /**
@@ -251,7 +262,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      * IPv6 address that's not ::1, fail immediately. If the user was previously authenticated by another adapter assign
      * it a corporate role, otherwise use the guest role.
      * </p>
-     * 
+     *
      * @param req
      *            the HttpServletRequest can be used to read cookies, parameters, headers, etc. It can also be used to
      *            find out more about the request like the full URL the request was made to. Accessing the HttpSession
@@ -284,16 +295,122 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
         String remoteAddressStr = req.getRemoteAddr();
 
         // log authentication... in this case print to system out
-        System.out.println("Client '" + remoteAddressStr + "' is trying to sign on to SP '" + spEntityId + "'");
+        log.info("Client '" + remoteAddressStr + "' is trying to sign on to SP '" + spEntityId + "'");
 
-        authnAdapterResponse.setAuthnStatus(AUTHN_STATUS.SUCCESS);
+        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> responseParams = new HashMap<String, Object>();
+
+        log.info("inParameters:");
+        for (Map.Entry<String, Object> e : inParameters.entrySet()) {
+            StringBuffer sb = new StringBuffer();
+            sb.append(" " + e.getKey());
+            if (e.getValue() != null)
+                sb.append(" : " + e.getValue().toString());
+            log.info(sb.toString());
+        }
+        log.info("request Parameters:");
+        for (Map.Entry<String, String[]> reqParam : req.getParameterMap().entrySet()) {
+            log.info(" " + reqParam.getKey() + " : " + reqParam.getValue()[0].toString());
+        }
+
+        log.info("request session parameters");
+        HttpSession httpSession = req.getSession();
+        for (Enumeration<String> e = httpSession.getAttributeNames() ; e.hasMoreElements() ;) {
+            String key = e.nextElement();
+            log.info(" " +  key + " : " + httpSession.getAttribute(key));
+        }
+
+        /**
+         * Because the AbstractPasswordIdpAuthnAdapter.form.template.html seems to indicate a successful POST by setting $var5 to 'clicked'
+         * thats what key off for further processing.
+         */
+        if (StringUtils.equals(req.getParameter("$var5"), "clicked")) {
+            /**
+             * UFP Identity is two-pass so we have to maintain state indicating where we are. The typical way we do this is with session variables.
+             * Since Velocity template don't seem to be able to access the session, we have to propagate that state into the template. 
+             */
+            if(!hasAttribute(httpSession, "IDENTITY_USERNAME") && !hasAttribute(httpSession, "IDENTITY_DISPLAY_ITEMS")) {
+                // we either dont have state
+                String postedUsername = req.getParameter("username");
+                if (postedUsername != null) {
+                    AuthenticationPretext authenticationPretext = identityServiceProvider.preAuthenticate(postedUsername, req);
+                    if (authenticationPretext != null) {
+                        if (authenticationPretext.getResult().getValue().equals("SUCCESS")) {
+                            httpSession.setAttribute("IDENTITY_USERNAME", authenticationPretext.getName());
+                            httpSession.setAttribute("IDENTITY_DISPLAY_ITEMS", authenticationPretext.getDisplayItem());
+                        }
+                    } else
+                        log.error("no authentication pretext for " + postedUsername);
+                } else
+                    log.error("no posted username");
+            } else if (hasAttribute(httpSession, "IDENTITY_DISPLAY_ITEMS") && hasAttribute(httpSession, "IDENTITY_USERNAME")) {
+                // or we do
+                Map<String, String[]> responseMap = new HashMap<String, String[]>();
+                List<DisplayItem> displayItems = (List<DisplayItem>)httpSession.getAttribute("IDENTITY_DISPLAY_ITEMS");
+                for (DisplayItem displayItem : displayItems) {
+                     log.info("found display item named " + displayItem.getDisplayName() + " with input named " + displayItem.getName());
+                     String parameter = req.getParameter(displayItem.getName());
+                     if (parameter != null)
+                         responseMap.put(displayItem.getName(), new String [] { parameter } );
+                }
+                Object response = identityServiceProvider.authenticate((String)httpSession.getAttribute("IDENTITY_USERNAME"), req, responseMap);
+                if (response != null) {
+                    if (response instanceof AuthenticationPretext) {
+                        AuthenticationPretext authenticationPretext = (AuthenticationPretext)response;
+                        if (authenticationPretext.getResult().getValue().equals("CONTINUE")) {
+                            httpSession.setAttribute("IDENTITY_DISPLAY_ITEMS", authenticationPretext.getDisplayItem());
+                            responseParams.put("message", authenticationPretext.getResult().getMessage());
+                        }
+                    } else if (response instanceof AuthenticationContext) {
+                        AuthenticationContext authenticationContext =  (AuthenticationContext)response;
+                        if (authenticationContext.getResult().getValue().equals("SUCCESS")) {
+                            attributes.put(ATTR_NAME, authenticationContext.getName());
+                            attributes.put(ATTR_ROLE, ROLE_GUEST);
+                            authnAdapterResponse.setAttributeMap(attributes);
+                            authnAdapterResponse.setAuthnStatus(AUTHN_STATUS.SUCCESS);
+                            return authnAdapterResponse;
+                        } else if (authenticationContext.getResult().getValue().equals("RESET")) {
+                            httpSession.removeAttribute("IDENTITY_USERNAME");
+                            httpSession.removeAttribute("IDENTITY_DISPLAY_ITEMS");
+                        } else
+                            log.info("returned result " + authenticationContext.getResult().getValue() + ", and message " + authenticationContext.getResult().getMessage());
+                    } else
+                        log.info("unknown response object: " + response.toString());
+                } else 
+                    log.info("no response");
+            }
+
+        }
+        String username = (String)httpSession.getAttribute("IDENTITY_USERNAME");
+        if (username != null)
+            responseParams.put("username", username);
+
+        List<DisplayItem> displayItems = (List<DisplayItem>)httpSession.getAttribute("IDENTITY_DISPLAY_ITEMS");
+        if ((displayItems != null) && !displayItems.isEmpty())
+            responseParams.put("displayItems", displayItems);
+
+        responseParams.put("action", inParameters.get("com.pingidentity.adapter.input.parameter.resume.path").toString());
+
+        Locale userLocale = LocaleUtil.getUserLocale(req);
+        log.info("userLocale: " + userLocale);
+        LanguagePackMessages lpm = new LanguagePackMessages("html-form-ufpidentity-template", userLocale);
+        log.info("language pack: " + lpm);
+        log.info("language pack (title): " + lpm.getMessage("title"));
+        ResourceBundle resourceBundle = lpm.getResourceBundle();
+        for (String key : resourceBundle.keySet())
+            log.info("key: " + key + ", value : " + resourceBundle.getString(key));
+
+        responseParams.put("adapterTemplateMessages", lpm);
+
+        TemplateRendererUtil.render(req, resp, "html.form.ufpidentity.template.html", responseParams);
+        authnAdapterResponse.setAuthnStatus(AUTHN_STATUS.IN_PROGRESS);
         return authnAdapterResponse;
     }
 
     /**
      * This method is deprecated. It is not called when IdpAuthenticationAdapterV2 is implemented. It is replaced by
      * {@link #lookupAuthN(HttpServletRequest, HttpServletResponse, Map)}
-     * 
+     *
      * @deprecated
      */
     @SuppressWarnings(value = { "rawtypes" })

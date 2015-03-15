@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+#*
+The server renders this HTML page in an end-user's browser when
+needed authentication credentials may be obtained via HTTP Basic
+Authentication or an HTML form.
+
+Velocity variables (identified by the $ character) are generated
+at runtime by the server.
+
+Change text or formatting as needed. Modifying Velocity statements
+is not recommended as it may interfere with expected server behavior.
+*#
+
+<!-- template name: AbstractPasswordIdpAuthnAdapter.form.template.html -->
+
+#set( $messageKeyPrefix = "AbstractPasswordIdpAuthnAdapter.form.template." )
+
+<html lang="$locale.getLanguage()" dir="ltr">
+<head>
+    <title>$templateMessages.getMessage($messageKeyPrefix, "title")</title>
+    <base href="$var11"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <link rel="stylesheet" type="text/css" href="/assets/css/main.css"/>
+    <script type="text/javascript">
+        function postOk()
+        {
+            document.forms[0]['$var5'].value = 'clicked';
+            document.forms[0].submit();
+        }
+
+        function postCancel()
+        {
+            document.forms[0]['$var6'].value = 'clicked';
+            document.forms[0].submit();
+        }
+    </script>
+</head>
+<body>
+<div class="ping-container ping-signin">
+    <div class="ping-header">
+        $templateMessages.getMessage($messageKeyPrefix, "title") 
+    </div>
+
+    <!-- .ping-header -->
+    <div class="ping-body-container">
+        <div class="section-title">
+            $templateMessages.getMessage($messageKeyPrefix, "headerMessage") 
+        </div>
+
+        <div>
+            <form method="POST" action="$action" autocomplete="off">
+                #if ($showError)
+                <div class="ping-messages">
+                    <div class="ping-error">
+                        $templateMessages.getMessage($messageKeyPrefix, "loginFailureMessage")
+                    </div>
+                </div>
+                #end
+                #if ($message) 
+                <div class="ping-messages">
+                  $message
+                </div>
+                #end
+
+                #if ($username)
+                $username
+                #else
+                <div class="ping-input-label">
+                    $templateMessages.getMessage($messageKeyPrefix, "usernameTitle")
+                </div>
+                <div class="ping-input-container">
+                    <input type="text" size="36" name="username" autocorrect="off" autocapitalize="off"/><!--#* Username value is explicitly HTML encoded in AbstractPasswordIdpAuthnAdapter *#-->
+                </div>
+                #end
+
+                #if ($displayItems) 
+                  #foreach ( $displayItem in $displayItems )
+                    <div class="ping-input-label">
+                      <abbr title="$displayItem.nickname">$displayItem.displayName</abbr>
+                    </div>
+                    <div class="ping-input-container">
+                      $displayItem.formElement
+                    </div>
+                  #end
+                #end
+                <div class="ping-buttons">
+                    <input type="hidden" name="$var5" value=""/>
+                    <input type="hidden" name="$var6" value=""/>
+
+                    <a href="javascript:void(0)" onclick="postCancel();" class="ping-button blue deny" title="$templateMessages.getMessage($messageKeyPrefix, "cancelButtonTitle")">
+                        $templateMessages.getMessage($messageKeyPrefix, "cancelButtonTitle")
+                    </a>
+                    <a href="javascript:void(0)" onclick="postOk();" class="ping-button normal allow" title="$templateMessages.getMessage($messageKeyPrefix, "signInButtonTitle")">
+                        $templateMessages.getMessage($messageKeyPrefix, "signInButtonTitle")
+                    </a>
+                </div><!-- .ping-buttons -->
+
+            </form>
+        </div><!-- .ping-body -->
+    </div><!-- .ping-body-container -->
+    <div class="ping-footer-container">
+        <div class="ping-footer">
+            <div class="ping-credits">
+                <a href="http://www.pingidentity.com">PingIdentity</a>
+            </div>
+        </div> <!-- .ping-footer -->
+    </div> <!-- .ping-footer-container -->
+</div><!-- .ping-container -->
+</body>
+</html>
