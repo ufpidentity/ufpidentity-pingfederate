@@ -364,6 +364,8 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
                     } else if (response instanceof AuthenticationContext) {
                         AuthenticationContext authenticationContext =  (AuthenticationContext)response;
                         if (authenticationContext.getResult().getValue().equals("SUCCESS")) {
+                            httpSession.removeAttribute("IDENTITY_USERNAME");
+                            httpSession.removeAttribute("IDENTITY_DISPLAY_ITEMS");
                             attributes.put(ATTR_NAME, authenticationContext.getName());
                             attributes.put(ATTR_ROLE, ROLE_GUEST);
                             authnAdapterResponse.setAttributeMap(attributes);
