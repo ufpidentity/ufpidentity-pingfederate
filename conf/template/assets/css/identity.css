@@ -1,0 +1,14 @@
+/* Image in Text Box */
+
+.ping-input-container > input#user_id {
+  background-color: #fff;
+  background-image: url('https://www.ufp.com/identity.png');
+  background-position: 5px center;
+  background-repeat: no-repeat;
+  text-indent: 20px;
+}
+
+.ping-input-label > span#user_id {
+  background: url('https://www.ufp.com/identity.png') no-repeat 2px 2px;
+  padding: 2px 2px 4px 20px;
+}

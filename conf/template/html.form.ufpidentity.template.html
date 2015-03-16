@@ -22,6 +22,7 @@ is not recommended as it may interfere with expected server behavior.
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <meta name="viewport" content="initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <link rel="stylesheet" type="text/css" href="/assets/css/main.css"/>
+    <link rel="stylesheet" type="text/css" href="/assets/css/identity.css"/>
     <script type="text/javascript">
         function postOk()
         {
@@ -64,13 +65,15 @@ is not recommended as it may interfere with expected server behavior.
                 #end
 
                 #if ($username)
-                $username
+                <div class="ping-input-label">
+                  <span id="user_id">$username</span>
+                </div>
                 #else
                 <div class="ping-input-label">
                     $templateMessages.getMessage($messageKeyPrefix, "usernameTitle")
                 </div>
                 <div class="ping-input-container">
-                    <input type="text" size="36" name="username" autocorrect="off" autocapitalize="off"/><!--#* Username value is explicitly HTML encoded in AbstractPasswordIdpAuthnAdapter *#-->
+                    <input id="user_id" type="text" size="36" name="username" autocorrect="off" autocapitalize="off"/><!--#* Username value is explicitly HTML encoded in AbstractPasswordIdpAuthnAdapter *#-->
                 </div>
                 #end
 
