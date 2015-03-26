@@ -95,7 +95,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
         Set<String> contract = new HashSet<String>();
         contract.add(ATTR_NAME);
         contract.add(ATTR_ROLE);
-        descriptor = new IdpAuthnAdapterDescriptor(this, "UFP Identity IdP Adapter", contract, false, guiDescriptor, false);
+        descriptor = new IdpAuthnAdapterDescriptor(this, "UFP Identity IdP Adapter", contract, false, guiDescriptor, false, "1.0");
     }
 
     /**
@@ -324,25 +324,33 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
          * Because the AbstractPasswordIdpAuthnAdapter.form.template.html seems to indicate a successful POST by setting $var5 to 'clicked'
          * thats what key off for further processing.
          */
+        boolean error = false;
         if (StringUtils.equals(req.getParameter("$var5"), "clicked")) {
             /**
              * UFP Identity is two-pass so we have to maintain state indicating where we are. The typical way we do this is with session variables.
-             * Since Velocity template don't seem to be able to access the session, we have to propagate that state into the template. 
+             * Since Velocity template don't seem to be able to access the session, we have to propagate that state into the template.
              */
+            error = true; // if were clicked, only a few cases are non-error
             if(!hasAttribute(httpSession, "IDENTITY_USERNAME") && !hasAttribute(httpSession, "IDENTITY_DISPLAY_ITEMS")) {
                 // we either dont have state
                 String postedUsername = req.getParameter("username");
-                if (postedUsername != null) {
+
+                if (StringUtils.isNotEmpty(postedUsername)) {
                     AuthenticationPretext authenticationPretext = identityServiceProvider.preAuthenticate(postedUsername, req);
                     if (authenticationPretext != null) {
                         if (authenticationPretext.getResult().getValue().equals("SUCCESS")) {
                             httpSession.setAttribute("IDENTITY_USERNAME", authenticationPretext.getName());
                             httpSession.setAttribute("IDENTITY_DISPLAY_ITEMS", authenticationPretext.getDisplayItem());
+                            error = false;
+                        } else {
+                            log.error(authenticationPretext.getResult().getMessage());
                         }
-                    } else
+                    } else {
                         log.error("no authentication pretext for " + postedUsername);
-                } else
+                    }
+                } else {
                     log.error("no posted username");
+                }
             } else if (hasAttribute(httpSession, "IDENTITY_DISPLAY_ITEMS") && hasAttribute(httpSession, "IDENTITY_USERNAME")) {
                 // or we do
                 Map<String, String[]> responseMap = new HashMap<String, String[]>();
@@ -360,12 +368,14 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
                         if (authenticationPretext.getResult().getValue().equals("CONTINUE")) {
                             httpSession.setAttribute("IDENTITY_DISPLAY_ITEMS", authenticationPretext.getDisplayItem());
                             responseParams.put("message", authenticationPretext.getResult().getMessage());
+                            error = false;
                         }
                     } else if (response instanceof AuthenticationContext) {
                         AuthenticationContext authenticationContext =  (AuthenticationContext)response;
                         if (authenticationContext.getResult().getValue().equals("SUCCESS")) {
                             httpSession.removeAttribute("IDENTITY_USERNAME");
                             httpSession.removeAttribute("IDENTITY_DISPLAY_ITEMS");
+                            // we return directly from here since we are completely done
                             attributes.put(ATTR_NAME, authenticationContext.getName());
                             attributes.put(ATTR_ROLE, ROLE_GUEST);
                             authnAdapterResponse.setAttributeMap(attributes);
@@ -374,15 +384,20 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
                         } else if (authenticationContext.getResult().getValue().equals("RESET")) {
                             httpSession.removeAttribute("IDENTITY_USERNAME");
                             httpSession.removeAttribute("IDENTITY_DISPLAY_ITEMS");
+                            error = false;
                         } else
                             log.info("returned result " + authenticationContext.getResult().getValue() + ", and message " + authenticationContext.getResult().getMessage());
                     } else
                         log.info("unknown response object: " + response.toString());
-                } else 
+                } else
                     log.info("no response");
             }
 
         }
+        if (error) {
+            responseParams.put("showError", true);
+        }
+
         String username = (String)httpSession.getAttribute("IDENTITY_USERNAME");
         if (username != null)
             responseParams.put("username", username);
