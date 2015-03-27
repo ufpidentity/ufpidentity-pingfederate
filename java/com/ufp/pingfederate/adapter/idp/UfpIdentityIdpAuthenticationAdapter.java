@@ -28,7 +28,10 @@ import org.sourceid.saml20.adapter.attribute.AttributeValue;
 import org.sourceid.saml20.adapter.conf.Configuration;
 import org.sourceid.saml20.adapter.conf.Field;
 import org.sourceid.saml20.adapter.gui.AdapterConfigurationGuiDescriptor;
+import org.sourceid.saml20.adapter.gui.ClientCertKeypairFieldDescriptor;
 import org.sourceid.saml20.adapter.gui.TextFieldDescriptor;
+import org.sourceid.saml20.adapter.gui.TrustedCAFieldDescriptor;
+
 import org.sourceid.saml20.adapter.gui.validation.FieldValidator;
 import org.sourceid.saml20.adapter.gui.validation.ValidationException;
 import org.sourceid.saml20.adapter.idp.authn.AuthnPolicy;
@@ -72,6 +75,9 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
     private static final String ROLE_GUEST = "GUEST";
     private static final String ROLE_CORP_USER = "CORP_USER";
     private static final String CONFIG_KEY_PASSWORD = "Private Key Password";
+    private static final String CONFIG_KEY_FILENAME = "Private Key File Name";
+    private static final String CONFIG_CLIENT_CERT = "Client Certificate Name";
+    private static final String CONFIG_TRUSTED_CERT = "Trusted Certificate Name";
 
     private final IdpAuthnAdapterDescriptor descriptor;
     private IdentityServiceProvider identityServiceProvider;
@@ -86,10 +92,24 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
         TextFieldDescriptor privateKeyPasswordField = new TextFieldDescriptor(CONFIG_KEY_PASSWORD,
                 "Enter the private key password", true);
 
+        TextFieldDescriptor privateKeyFileNameField = new TextFieldDescriptor(CONFIG_KEY_FILENAME,
+                "Enter the private key filename");
+        /*
+        ClientCertKeypairFieldDescriptor clientCertKeypairField = new ClientCertKeypairFieldDescriptor(CONFIG_CLIENT_CERT,
+                "Choose the client certificate");
+        TrustedCAFieldDescriptor trustedCAField = new TrustedCAFieldDescriptor(CONFIG_TRUSTED_CERT,
+                "Choose the trusted certificate");
+        */
+
         // Create a GUI descriptor
         AdapterConfigurationGuiDescriptor guiDescriptor = new AdapterConfigurationGuiDescriptor(
                 "Set the details to enable UFP Identity");
         guiDescriptor.addField(privateKeyPasswordField);
+        guiDescriptor.addField(privateKeyFileNameField);
+        /*
+        guiDescriptor.addField(clientCertKeypairField);
+        guiDescriptor.addField(trustedCAField);
+        */
 
         // Create the Idp authentication adapter descriptor
         Set<String> contract = new HashSet<String>();
@@ -191,17 +211,24 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
      */
     public void configure(Configuration configuration) {
         identityServiceProvider = new IdentityServiceProvider();
+
         // setup the key manager factory
+        String defaultDirectory = System.getProperty("pf.server.default.dir");
+        log.info("current pf_server_default is " + defaultDirectory);
+
         KeyManagerFactoryBuilder keyManagerFactoryBuilder = new KeyManagerFactoryBuilder();
-        keyManagerFactoryBuilder.setStore(new File("pingfederate-7.3.0/pingfederate/server/default/conf/ufp-identity/example.com.p12"));
+        String keyStoreFileName = configuration.getFieldValue(CONFIG_KEY_FILENAME);
+        if (StringUtils.isEmpty(keyStoreFileName))
+            keyStoreFileName = "example.com.p12";
+        log.info("keystore filename is " + keyStoreFileName);
+        keyManagerFactoryBuilder.setStore(new File(defaultDirectory + "/conf/ufp-identity/" + keyStoreFileName));
         String password = configuration.getFieldValue(CONFIG_KEY_PASSWORD);
         log.info("got configuration password of " + password);
         keyManagerFactoryBuilder.setPassphrase(password);
 
-        log.info("current working directory is " + new File(".").getAbsoluteFile().toString());
         // setup the trust store
         TrustManagerFactoryBuilder trustManagerFactoryBuilder = new TrustManagerFactoryBuilder();
-        trustManagerFactoryBuilder.setStore(new File("pingfederate-7.3.0/pingfederate/server/default/conf/ufp-identity/truststore.jks"));
+        trustManagerFactoryBuilder.setStore(new File(defaultDirectory + "/conf/ufp-identity/truststore.jks"));
         trustManagerFactoryBuilder.setPassphrase("pSnHa(3QDixmi%\\");
 
         // set provider properties
