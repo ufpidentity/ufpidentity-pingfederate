@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
-import java.util.ResourceBundle;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,12 +36,10 @@ import org.sourceid.saml20.adapter.idp.authn.AuthnPolicy;
 import org.sourceid.saml20.adapter.idp.authn.IdpAuthenticationAdapter;
 import org.sourceid.saml20.adapter.idp.authn.IdpAuthnAdapterDescriptor;
 
-import com.pingidentity.locale.LocaleUtil;
 import com.pingidentity.sdk.AuthnAdapterResponse;
 import com.pingidentity.sdk.AuthnAdapterResponse.AUTHN_STATUS;
 import com.pingidentity.sdk.IdpAuthenticationAdapterV2;
 import com.pingidentity.sdk.template.TemplateRendererUtil;
-import com.pingidentity.sdk.locale.LanguagePackMessages;
 
 import com.ufp.identity4j.data.AuthenticationContext;
 import com.ufp.identity4j.data.AuthenticationPretext;
@@ -434,17 +430,6 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
             responseParams.put("displayItems", displayItems);
 
         responseParams.put("action", inParameters.get("com.pingidentity.adapter.input.parameter.resume.path").toString());
-
-        Locale userLocale = LocaleUtil.getUserLocale(req);
-        log.info("userLocale: " + userLocale);
-        LanguagePackMessages lpm = new LanguagePackMessages("html-form-ufpidentity-template", userLocale);
-        log.info("language pack: " + lpm);
-        log.info("language pack (title): " + lpm.getMessage("title"));
-        ResourceBundle resourceBundle = lpm.getResourceBundle();
-        for (String key : resourceBundle.keySet())
-            log.info("key: " + key + ", value : " + resourceBundle.getString(key));
-
-        responseParams.put("adapterTemplateMessages", lpm);
 
         TemplateRendererUtil.render(req, resp, "html.form.ufpidentity.template.html", responseParams);
         authnAdapterResponse.setAuthnStatus(AUTHN_STATUS.IN_PROGRESS);
