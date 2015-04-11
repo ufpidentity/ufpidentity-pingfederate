@@ -44,13 +44,13 @@ is not recommended as it may interfere with expected server behavior.
 <body onload="setFocus()">
 <div class="ping-container ping-signin">
     <div class="ping-header">
-        $templateMessages.getMessage($messageKeyPrefix, "title") 
+        $templateMessages.getMessage($messageKeyPrefix, "title")
     </div>
 
     <!-- .ping-header -->
     <div class="ping-body-container">
         <div class="section-title">
-            $templateMessages.getMessage($messageKeyPrefix, "headerMessage") 
+            $templateMessages.getMessage($messageKeyPrefix, "headerMessage")
         </div>
 
         <div>
@@ -62,7 +62,7 @@ is not recommended as it may interfere with expected server behavior.
                     </div>
                 </div>
                 #end
-                #if ($message) 
+                #if ($message)
                 <div class="ping-messages">
                   $message
                 </div>
@@ -81,7 +81,7 @@ is not recommended as it may interfere with expected server behavior.
                 </div>
                 #end
 
-                #if ($displayItems) 
+                #if ($displayItems)
                   #foreach ( $displayItem in $displayItems )
                     <div class="ping-input-label">
                       <abbr title="$displayItem.nickname">$displayItem.displayName</abbr>
