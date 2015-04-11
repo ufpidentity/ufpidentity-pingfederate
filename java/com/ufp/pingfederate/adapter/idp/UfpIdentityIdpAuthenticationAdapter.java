@@ -416,7 +416,14 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
                             httpSession.removeAttribute("IDENTITY_DISPLAY_ITEMS");
                             // we return directly from here since we are completely done
                             attributes.put(ATTR_NAME, authenticationContext.getName());
-                            attributes.put(ATTR_ROLE, ROLE_GUEST);
+
+                            String passedRole = safeGet(chainedAttributes, ATTR_ROLE);
+                            if (StringUtils.isNotEmpty(passedRole)) {
+                                attributes.put(ATTR_ROLE, passedRole);
+                            } else {
+                                attributes.put(ATTR_ROLE, ROLE_GUEST);
+                            }
+
                             authnAdapterResponse.setAttributeMap(attributes);
                             authnAdapterResponse.setAuthnStatus(AUTHN_STATUS.SUCCESS);
                             return authnAdapterResponse;
@@ -461,5 +468,15 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
     @SuppressWarnings(value = { "rawtypes" })
     public Map lookupAuthN(HttpServletRequest req, HttpServletResponse resp, String partnerSpEntityId, AuthnPolicy authnPolicy, String resumePath) throws AuthnAdapterException, IOException {
         throw new UnsupportedOperationException();
+    }
+
+    private String safeGet(Map<String, ? extends Object> map, String key) {
+        String s = null;
+        if (MapUtils.isNotEmpty(map)) {
+            if (map.containsKey(key)) {
+                s = map.get(key).toString();
+            }
+        }
+        return s;
     }
 }
