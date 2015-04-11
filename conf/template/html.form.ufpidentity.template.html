@@ -54,7 +54,7 @@ is not recommended as it may interfere with expected server behavior.
         </div>
 
         <div>
-            <form method="POST" action="$action" autocomplete="off">
+            <form method="POST" action="$action" autocomplete="off" onsubmit="postOk();">
                 #if ($showError)
                 <div class="ping-messages">
                     <div class="ping-error">
