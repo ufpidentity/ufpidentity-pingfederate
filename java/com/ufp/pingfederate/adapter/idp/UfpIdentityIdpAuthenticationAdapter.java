@@ -360,7 +360,7 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
          * thats what key off for further processing.
          */
         boolean error = false;
-        if (StringUtils.equals(req.getParameter("$var5"), "clicked")) {
+        if (StringUtils.equals(req.getParameter("$var5"), "clicked") || StringUtils.isNotEmpty((String)inParameters.get(IN_PARAMETER_NAME_USERID))) {
             /**
              * UFP Identity is two-pass so we have to maintain state indicating where we are. The typical way we do this is with session variables.
              * Since Velocity template don't seem to be able to access the session, we have to propagate that state into the template.
@@ -369,6 +369,10 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
             if(!hasAttribute(httpSession, "IDENTITY_USERNAME") && !hasAttribute(httpSession, "IDENTITY_DISPLAY_ITEMS")) {
                 // we either dont have state
                 String postedUsername = req.getParameter("username");
+
+                if (StringUtils.isEmpty(postedUsername)) {
+                    postedUsername = (String)inParameters.get(IN_PARAMETER_NAME_USERID);
+                }
 
                 if (StringUtils.isNotEmpty(postedUsername)) {
                     AuthenticationPretext authenticationPretext = identityServiceProvider.preAuthenticate(postedUsername, req);
