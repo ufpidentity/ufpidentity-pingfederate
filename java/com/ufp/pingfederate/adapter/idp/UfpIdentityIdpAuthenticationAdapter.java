@@ -17,6 +17,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -322,6 +323,17 @@ public class UfpIdentityIdpAuthenticationAdapter implements IdpAuthenticationAda
 
         Map<String, Object> attributes = new HashMap<String, Object>();
         Map<String, Object> responseParams = new HashMap<String, Object>();
+
+        if (MapUtils.isNotEmpty(chainedAttributes)) {
+            log.info("chainedAttributes");
+            for (Map.Entry<String, AttributeValue> e : chainedAttributes.entrySet()) {
+                StringBuffer sb = new StringBuffer();
+                sb.append(" " + e.getKey());
+                if ((e.getValue() != null) && (e.getValue() instanceof AttributeValue))
+                    sb.append(" : " + e.getValue().toString());
+                log.info(sb.toString());
+            }
+        }
 
         log.info("inParameters:");
         for (Map.Entry<String, Object> e : inParameters.entrySet()) {
