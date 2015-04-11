@@ -24,6 +24,10 @@ is not recommended as it may interfere with expected server behavior.
     <link rel="stylesheet" type="text/css" href="assets/css/main.css"/>
     <link rel="stylesheet" type="text/css" href="assets/css/identity.css"/>
     <script type="text/javascript">
+        function setFocus()
+        {
+            document.getElementById('AuthParam0').focus();
+        }
         function postOk()
         {
             document.forms[0]['$var5'].value = 'clicked';
@@ -37,7 +41,7 @@ is not recommended as it may interfere with expected server behavior.
         }
     </script>
 </head>
-<body>
+<body onload="setFocus()">
 <div class="ping-container ping-signin">
     <div class="ping-header">
         $templateMessages.getMessage($messageKeyPrefix, "title") 
